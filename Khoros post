@@ -1,0 +1,53 @@
+import requests
+import time
+import random
+
+def post_to_khoros(url, headers, payload, max_retries=5):
+    delay = 1  # initial delay
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(url, headers=headers, json=payload)
+            if response.status_code == 200:
+                response_data = response.json()
+                export_id = response_data.get('export_id')
+                if export_id:
+                    return export_id
+                else:
+                    raise Exception("Export ID not found in the response")
+            elif response.status_code in [429, 500, 502, 503, 504]:
+                retry_after = response.headers.get('Retry-After')
+                if retry_after:
+                    delay = int(retry_after)
+                else:
+                    delay = min(delay * 2, 60)  # exponential backoff with a max delay of 60 seconds
+                delay += random.uniform(0, 1)  # add jitter
+                print(f"Retrying in {delay:.2f} seconds...")
+                time.sleep(delay)
+            else:
+                response.raise_for_status()  # raise an error for other non-success status codes
+        except requests.exceptions.RequestException as e:
+            print(f"Request failed: {e}")
+            if attempt < max_retries - 1:
+                delay = min(delay * 2, 60)  # exponential backoff
+                delay += random.uniform(0, 1)  # add jitter
+                print(f"Retrying in {delay:.2f} seconds...")
+                time.sleep(delay)
+            else:
+                raise  # re-raise the last exception if out of retries
+    raise Exception("Maximum retries exceeded")
+
+# Usage
+url = "https://api.khoros.com/your-endpoint"
+headers = {
+    "Authorization": "Bearer YOUR_ACCESS_TOKEN",
+    "Content-Type": "application/json"
+}
+payload = {
+    # your payload data
+}
+
+try:
+    export_id = post_to_khoros(url, headers, payload)
+    print("Export ID received:", export_id)
+except Exception as e:
+    print("Failed to get export ID from Khoros API:", e)
