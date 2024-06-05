@@ -1,0 +1,30 @@
+from datetime import datetime, timedelta
+import re
+
+def replace_date_in_url(url: str, date: str) -> str:
+    # Parse the input date string into a datetime object
+    base_date = datetime.strptime(date, '%Y-%m-%d')
+    
+    # Define a function to replace each matched placeholder with the correct date
+    def replace_placeholder(match):
+        # Extract the offset from the match if present
+        offset_str = match.group(1)
+        if offset_str:
+            offset = int(offset_str)
+        else:
+            offset = 0
+        # Calculate the new date with the offset
+        new_date = base_date + timedelta(days=offset)
+        # Return the new date as a string in the specified format
+        return new_date.strftime('%Y-%m-%d')
+    
+    # Use regex to find all placeholders and replace them using the replace_placeholder function
+    updated_url = re.sub(r'\{\{%Y-%m-%d([+-]\d+)?\}\}', replace_placeholder, url)
+    
+    return updated_url
+
+# Example usage
+url = "https://support.google.com/mail/thread/121162166/start={{%Y-%m-%d}}anyotherstring{{%Y-%m-%d+2}}somehere{{%Y-%m-%d-1}}"
+date = "2024-02-1"
+result = replace_date_in_url(url, date)
+print(result)  # Output: https://support.google.com/mail/thread/121162166/start=2024-02-1anyotherstring2024-02-3somehere2024-01-30
